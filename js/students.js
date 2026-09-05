@@ -11,7 +11,7 @@ import { createData, updateData, deleteData } from './firebase.js';
 function renderStudents(filter = 'all', search = '') {
   const students = window.STUDENTS || [];
 
-  // Stats
+  // ---------- Stats Update ----------
   const totalStudents = students.length;
   const paidCount = students.filter(s => s.feeStatus === 'paid').length;
   const pendingCount = students.filter(s => s.feeStatus === 'pending').length;
@@ -27,6 +27,7 @@ function renderStudents(filter = 'all', search = '') {
     `;
   }
 
+  // ---------- Filter & Search ----------
   let list = students;
   if (filter !== 'all') {
     list = list.filter(s => s.class === parseInt(filter));
@@ -36,6 +37,7 @@ function renderStudents(filter = 'all', search = '') {
     list = list.filter(s => s.name.toLowerCase().includes(q));
   }
 
+  // ---------- Table Body ----------
   const tbody = document.getElementById('studentTableBody');
   if (!tbody) return;
 
@@ -61,17 +63,29 @@ function renderStudents(filter = 'all', search = '') {
     </tr>
   `).join('');
 
-  // Attach event listeners to edit/delete buttons
+  // ---------- Event Listeners on Buttons ----------
   tbody.querySelectorAll('[data-action="editStudent"]').forEach(btn => {
-    btn.addEventListener('click', () => editStudent(btn.dataset.id));
+    btn.removeEventListener('click', editHandler); // prevent duplicate binds
+    btn.addEventListener('click', editHandler);
   });
   tbody.querySelectorAll('[data-action="deleteStudent"]').forEach(btn => {
-    btn.addEventListener('click', () => deleteStudent(btn.dataset.id));
+    btn.removeEventListener('click', deleteHandler);
+    btn.addEventListener('click', deleteHandler);
   });
+
+  // Wrapper functions to pass id
+  function editHandler(e) {
+    const id = e.currentTarget.dataset.id;
+    editStudent(id);
+  }
+  function deleteHandler(e) {
+    const id = e.currentTarget.dataset.id;
+    deleteStudent(id);
+  }
 }
 
 // ============================================================
-// ADD STUDENT
+// ADD STUDENT MODAL
 // ============================================================
 
 function showAddStudentModal() {
@@ -81,10 +95,10 @@ function showAddStudentModal() {
     .map(sec => `<option value="${sec}">${sec}</option>`).join('');
 
   window.openModal('Add Student', `
-    <div class="form-group"><label>Name</label><input type="text" id="addStudentName" placeholder="Full name" /></div>
-    <div class="form-group"><label>Class</label><select id="addStudentClass">${classOptions}</select></div>
+    <div class="form-group"><label>Name *</label><input type="text" id="addStudentName" placeholder="Full name" /></div>
+    <div class="form-group"><label>Class *</label><select id="addStudentClass">${classOptions}</select></div>
     <div class="form-group"><label>Section</label><select id="addStudentSection">${sectionOptions}</select></div>
-    <div class="form-group"><label>Roll No</label><input type="number" id="addStudentRoll" placeholder="Roll number" /></div>
+    <div class="form-group"><label>Roll No *</label><input type="number" id="addStudentRoll" placeholder="Roll number" /></div>
     <div class="form-group"><label>Fee Status</label>
       <select id="addStudentFeeStatus">
         <option value="paid">Paid</option>
@@ -96,6 +110,7 @@ function showAddStudentModal() {
     <div class="form-group"><label>Mobile</label><input type="text" id="addStudentMobile" placeholder="9876543210" /></div>
     <div class="form-group"><label>Guardian</label><input type="text" id="addStudentGuardian" placeholder="Mr. Sharma" /></div>
   `, 'Add Student', async () => {
+    // Gather data
     const name = document.getElementById('addStudentName').value.trim();
     const classVal = parseInt(document.getElementById('addStudentClass').value);
     const section = document.getElementById('addStudentSection').value;
@@ -105,8 +120,9 @@ function showAddStudentModal() {
     const mobile = document.getElementById('addStudentMobile').value.trim();
     const guardian = document.getElementById('addStudentGuardian').value.trim();
 
+    // Validation
     if (!name || !classVal || !roll) {
-      window.showToast('Please fill all required fields', 'error');
+      window.showToast('Please fill all required fields (*)', 'error');
       return;
     }
 
@@ -122,7 +138,6 @@ function showAddStudentModal() {
       photo: ''
     };
 
-    // Show loading on button
     const btn = document.querySelector('#modal .btn-primary');
     if (btn) { btn.disabled = true; btn.textContent = 'Adding...'; }
 
@@ -143,12 +158,15 @@ function showAddStudentModal() {
 }
 
 // ============================================================
-// EDIT STUDENT
+// EDIT STUDENT MODAL
 // ============================================================
 
 async function editStudent(id) {
   const student = window.STUDENTS.find(s => s.id === id);
-  if (!student) return;
+  if (!student) {
+    window.showToast('Student not found', 'error');
+    return;
+  }
 
   const classOptions = Array.from({ length: 12 }, (_, i) => i + 1)
     .map(c => `<option value="${c}" ${c === student.class ? 'selected' : ''}>Class ${c}</option>`).join('');
@@ -156,10 +174,10 @@ async function editStudent(id) {
     .map(sec => `<option value="${sec}" ${sec === student.section ? 'selected' : ''}>${sec}</option>`).join('');
 
   window.openModal('Edit Student', `
-    <div class="form-group"><label>Name</label><input type="text" id="editStudentName" value="${student.name}" /></div>
-    <div class="form-group"><label>Class</label><select id="editStudentClass">${classOptions}</select></div>
+    <div class="form-group"><label>Name *</label><input type="text" id="editStudentName" value="${student.name}" /></div>
+    <div class="form-group"><label>Class *</label><select id="editStudentClass">${classOptions}</select></div>
     <div class="form-group"><label>Section</label><select id="editStudentSection">${sectionOptions}</select></div>
-    <div class="form-group"><label>Roll No</label><input type="number" id="editStudentRoll" value="${student.roll}" /></div>
+    <div class="form-group"><label>Roll No *</label><input type="number" id="editStudentRoll" value="${student.roll}" /></div>
     <div class="form-group"><label>Fee Status</label>
       <select id="editStudentFeeStatus">
         <option value="paid" ${student.feeStatus === 'paid' ? 'selected' : ''}>Paid</option>
@@ -181,7 +199,7 @@ async function editStudent(id) {
     const guardian = document.getElementById('editStudentGuardian').value.trim();
 
     if (!name || !classVal || !roll) {
-      window.showToast('Please fill all required fields', 'error');
+      window.showToast('Please fill all required fields (*)', 'error');
       return;
     }
 
@@ -230,7 +248,7 @@ async function deleteStudent(id) {
   try {
     await deleteData('students', id);
     window.STUDENTS = window.STUDENTS.filter(s => s.id !== id);
-    window.showToast('Student deleted', 'success');
+    window.showToast('Student deleted successfully', 'success');
     renderStudents();
     if (window.renderDashboard) window.renderDashboard();
   } catch (error) {
