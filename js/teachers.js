@@ -11,7 +11,7 @@ import { createData, updateData, deleteData } from './firebase.js';
 function renderStaff(filter = 'all', search = '') {
   const teachers = window.TEACHERS || [];
 
-  // Stats
+  // ---------- Stats ----------
   const totalTeachers = teachers.filter(t => t.role === 'teacher').length;
   const totalStaff = teachers.filter(t => t.role === 'staff').length;
   const totalEmployees = teachers.length;
@@ -25,6 +25,7 @@ function renderStaff(filter = 'all', search = '') {
     `;
   }
 
+  // ---------- Filter & Search ----------
   let list = teachers;
   if (filter !== 'all') {
     list = list.filter(t => t.role === filter);
@@ -63,13 +64,24 @@ function renderStaff(filter = 'all', search = '') {
     </tr>
   `).join('');
 
-  // Attach event listeners
+  // ---------- Event Listeners ----------
   tbody.querySelectorAll('[data-action="editStaff"]').forEach(btn => {
-    btn.addEventListener('click', () => editStaff(btn.dataset.id));
+    btn.removeEventListener('click', editHandler);
+    btn.addEventListener('click', editHandler);
   });
   tbody.querySelectorAll('[data-action="deleteStaff"]').forEach(btn => {
-    btn.addEventListener('click', () => deleteStaff(btn.dataset.id));
+    btn.removeEventListener('click', deleteHandler);
+    btn.addEventListener('click', deleteHandler);
   });
+
+  function editHandler(e) {
+    const id = e.currentTarget.dataset.id;
+    editStaff(id);
+  }
+  function deleteHandler(e) {
+    const id = e.currentTarget.dataset.id;
+    deleteStaff(id);
+  }
 }
 
 // ============================================================
@@ -84,8 +96,7 @@ function setupStaffConditionalLogic(designationId, subjectGroupId) {
       subjectGroup.style.display = designSelect.value === 'Subject Teacher' ? 'block' : 'none';
     };
     designSelect.addEventListener('change', update);
-    // Initial state
-    update();
+    update(); // initial state
   }
 }
 
@@ -100,21 +111,21 @@ function showAddStaffModal() {
     .map(s => `<option value="${s}">${s}</option>`).join('');
 
   const modalHTML = `
-    <div class="form-group"><label>Name</label><input type="text" id="addStaffName" placeholder="Full name" /></div>
-    <div class="form-group"><label>Role</label>
+    <div class="form-group"><label>Name *</label><input type="text" id="addStaffName" placeholder="Full name" /></div>
+    <div class="form-group"><label>Role *</label>
       <select id="addStaffRole">
         <option value="teacher">Teacher</option>
         <option value="staff">Staff</option>
       </select>
     </div>
-    <div class="form-group"><label>Designation</label>
+    <div class="form-group"><label>Designation *</label>
       <select id="addStaffDesignation">${designationOptions}</select>
     </div>
     <div class="form-group" id="addSubjectGroup" style="display:none;">
       <label>Subject</label>
       <select id="addStaffSubject">${subjectOptions}</select>
     </div>
-    <div class="form-group"><label>Email</label><input type="email" id="addStaffEmail" placeholder="email@school.com" /></div>
+    <div class="form-group"><label>Email *</label><input type="email" id="addStaffEmail" placeholder="email@school.com" /></div>
   `;
 
   window.openModal('Add Teacher / Staff', modalHTML, 'Add', async () => {
@@ -125,9 +136,8 @@ function showAddStaffModal() {
     const subject = subjectEl ? subjectEl.value : 'N/A';
     const email = document.getElementById('addStaffEmail').value.trim();
 
-    // Validate
     if (!name || !email) {
-      window.showToast('Please fill all fields', 'error');
+      window.showToast('Please fill all required fields (*)', 'error');
       return;
     }
     if (!email.includes('@')) {
@@ -155,7 +165,7 @@ function showAddStaffModal() {
     }
   });
 
-  // Conditional logic
+  // Conditional logic after modal renders
   setTimeout(() => {
     setupStaffConditionalLogic('addStaffDesignation', 'addSubjectGroup');
   }, 50);
@@ -167,7 +177,10 @@ function showAddStaffModal() {
 
 async function editStaff(id) {
   const staff = window.TEACHERS.find(t => t.id === id);
-  if (!staff) return;
+  if (!staff) {
+    window.showToast('Employee not found', 'error');
+    return;
+  }
 
   const designationOptions = ['Principal', 'Head Master', 'Assistant Teacher', 'Subject Teacher', 'Administration', 'Staff', 'Peon']
     .map(d => `<option value="${d}" ${d === staff.designation ? 'selected' : ''}>${d}</option>`).join('');
@@ -175,21 +188,21 @@ async function editStaff(id) {
     .map(s => `<option value="${s}" ${s === staff.subDepartment ? 'selected' : ''}>${s}</option>`).join('');
 
   const modalHTML = `
-    <div class="form-group"><label>Name</label><input type="text" id="editStaffName" value="${staff.name}" /></div>
-    <div class="form-group"><label>Role</label>
+    <div class="form-group"><label>Name *</label><input type="text" id="editStaffName" value="${staff.name}" /></div>
+    <div class="form-group"><label>Role *</label>
       <select id="editStaffRole">
         <option value="teacher" ${staff.role === 'teacher' ? 'selected' : ''}>Teacher</option>
         <option value="staff" ${staff.role === 'staff' ? 'selected' : ''}>Staff</option>
       </select>
     </div>
-    <div class="form-group"><label>Designation</label>
+    <div class="form-group"><label>Designation *</label>
       <select id="editStaffDesignation">${designationOptions}</select>
     </div>
     <div class="form-group" id="editSubjectGroup" style="${staff.designation === 'Subject Teacher' ? 'display:block;' : 'display:none;'}">
       <label>Subject</label>
       <select id="editStaffSubject">${subjectOptions}</select>
     </div>
-    <div class="form-group"><label>Email</label><input type="email" id="editStaffEmail" value="${staff.email}" /></div>
+    <div class="form-group"><label>Email *</label><input type="email" id="editStaffEmail" value="${staff.email}" /></div>
   `;
 
   window.openModal('Edit Teacher / Staff', modalHTML, 'Update', async () => {
@@ -199,9 +212,8 @@ async function editStaff(id) {
     const subject = document.getElementById('editStaffSubject') ? document.getElementById('editStaffSubject').value : 'N/A';
     const email = document.getElementById('editStaffEmail').value.trim();
 
-    // Validate
     if (!name || !email) {
-      window.showToast('Please fill all fields', 'error');
+      window.showToast('Please fill all required fields (*)', 'error');
       return;
     }
     if (!email.includes('@')) {
@@ -230,7 +242,6 @@ async function editStaff(id) {
     }
   });
 
-  // Conditional logic
   setTimeout(() => {
     setupStaffConditionalLogic('editStaffDesignation', 'editSubjectGroup');
   }, 50);
@@ -249,7 +260,7 @@ async function deleteStaff(id) {
   try {
     await deleteData('teachers', id);
     window.TEACHERS = window.TEACHERS.filter(t => t.id !== id);
-    window.showToast('Deleted', 'success');
+    window.showToast('Deleted successfully', 'success');
     renderStaff();
     if (window.renderDashboard) window.renderDashboard();
   } catch (error) {
