@@ -1284,28 +1284,33 @@ select {
         display: none !important;
     }
 }
-
 /* ============================================================
-   STUDENTS PAGE TABLE UPGRADE – Ultimate Responsiveness (Only Horizontal Scroll, No Layout Shift)
+   STUDENTS PAGE TABLE UPGRADE – FIXED LAYOUT (No Page Expansion)
    ============================================================ */
 
-/* 1. Wrapper को पैरेंट की चौड़ाई में रखें और स्क्रॉल की अनुमति दें */
-#page-students .table-wrapper {
-    overflow-x: auto;
-    overflow-y: visible;
-    max-width: 100%;               /* यह wrapper को पैरेंट से बाहर नहीं जाने देता */
-    /* बाकी स्टाइल (background, border, radius) .table-wrapper से आ जाएँगी */
+#page-students {
+    overflow-x: hidden;    /* Pura page expand hone se rokta hai */
+    max-width: 100%;
 }
 
-/* 2. टेबल को सामान्य चौड़ाई (100%) दें, min-width न दें – 
-      इससे टेबल अपने कंटेंट के अनुसार बढ़ेगी, लेकिन wrapper स्क्रॉल करेगा */
+#page-students .stats-grid {
+    max-width: 100%;       /* Stats cards ko bhi expand hone se rokta hai */
+}
+
+#page-students .table-wrapper {
+    overflow-x: auto;      /* Scroll sirf yahan aayega */
+    overflow-y: visible;
+    max-width: 100%;
+    width: 100%;
+    display: block;
+}
+
 #page-students .data-table {
-    width: 100%;                    /* डिफ़ॉल्ट, लेकिन स्पष्ट करने के लिए */
-    min-width: auto;                /* किसी भी न्यूनतम चौड़ाई को रद्द करें */
+    width: 100%;
+    min-width: 700px;      /* Chhoti screen par scroll lane ke liye */
     margin-bottom: 0;
 }
 
-/* 3. हेडर और सेल्स में टेक्स्ट को एक लाइन में रखें – ताकि कॉलम फैलें और स्क्रॉल आए */
 #page-students .data-table th,
 #page-students .data-table td {
     white-space: nowrap;
@@ -1313,29 +1318,16 @@ select {
     vertical-align: middle;
 }
 
-/* 4. एक्शन बटन्स को एक लाइन में रखें (ताकि वे कॉलम चौड़ा करें) */
 #page-students .data-table .actions-cell {
     display: flex;
     gap: 0.5rem;
     flex-wrap: nowrap;
 }
 
-/* 5. मोबाइल पर फ़ॉन्ट आकार और पैडिंग थोड़ी कम करें, 
-      लेकिन nowrap बरकरार रखें ताकि स्क्रॉल हो – यही अल्टीमेट रिस्पॉन्सिवनेस है */
 @media (max-width: 768px) {
     #page-students .data-table th,
     #page-students .data-table td {
         padding: 0.4rem 0.6rem;
         font-size: 0.75rem;
-        white-space: nowrap;         /* मोबाइल पर भी nowrap – स्क्रॉल होगा, लेकिन पेज नहीं हिलेगा */
-    }
-}
-
-/* 6. अति छोटी स्क्रीन (≤ 480px) पर अगर फिर भी कुछ टूटे, तो पैडिंग और घटाएँ */
-@media (max-width: 480px) {
-    #page-students .data-table th,
-    #page-students .data-table td {
-        padding: 0.3rem 0.4rem;
-        font-size: 0.65rem;
     }
 }
