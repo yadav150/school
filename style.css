@@ -1284,3 +1284,49 @@ select {
         display: none !important;
     }
 }
+
+/* ============================================================
+   STUDENTS PAGE TABLE UPGRADE – Longer & Scrollable (No HTML/JS Change)
+   ============================================================ */
+
+/* 1. टेबल के wrapper को नियंत्रित करें – स्क्रॉल यहीं रुके */
+#page-students .table-wrapper {
+    overflow-x: auto;           /* हॉरिज़ॉन्टल स्क्रॉल */
+    overflow-y: visible;
+    max-width: 100%;            /* पेज लेआउट को बाहर न धकेले */
+    /* बाकी स्टाइल (बैकग्राउंड, बॉर्डर) .table-wrapper से अपने-आप आ जाएँगी */
+}
+
+/* 2. टेबल को जबरदस्ती चौड़ा करें */
+#page-students .data-table {
+    min-width: 1200px;          /* ⬅️ यह टेबल को 1200px से छोटा नहीं होने देगा, 
+                                    जिससे स्क्रॉल आएगा */
+    width: max-content;         /* कंटेंट के हिसाब से चौड़ाई, लेकिन min-width से कम नहीं */
+    margin-bottom: 0;
+}
+
+/* 3. सभी हेडर व डेटा सेल्स को एक लाइन में रखें (ताकि चौड़ाई बढ़े) */
+#page-students .data-table th,
+#page-students .data-table td {
+    white-space: nowrap;        /* टेक्स्ट न लपेटें – इससे कॉलम चौड़े होंगे */
+    padding: 0.6rem 1rem;       /* थोड़ा कॉम्पैक्ट पैडिंग (ऑप्शनल) */
+}
+
+/* 4. एक्शन बटन्स को एक लाइन में रखें */
+#page-students .data-table .actions-cell {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: nowrap;
+}
+
+/* 5. मोबाइल पर थोड़ा एडजस्ट (ऑप्शनल) */
+@media (max-width: 768px) {
+    #page-students .data-table {
+        min-width: 900px;       /* मोबाइल पर 900px न्यूनतम */
+    }
+    #page-students .data-table th,
+    #page-students .data-table td {
+        padding: 0.4rem 0.6rem;
+        font-size: 0.75rem;
+    }
+}
