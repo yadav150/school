@@ -1,294 +1,108 @@
-// ============================================================
-// STUDENTS MODULE – CRUD, Render, Search, Filters
-// ============================================================
+/* ============================================================
+   STANDARD TABLE SYSTEM – Scrollable, Fixed Layout, Separators
+   ============================================================ */
 
-import { createData, updateData, deleteData } from './firebase.js';
-
-// ============================================================
-// RENDER STUDENTS TABLE + STATS
-// ============================================================
-
-function renderStudents(filter = 'all', search = '') {
-  const students = window.STUDENTS || [];
-
-  // ---------- Stats Update ----------
-  const totalStudents = students.length;
-  const paidCount = students.filter(s => s.feeStatus === 'paid').length;
-  const pendingCount = students.filter(s => s.feeStatus === 'pending').length;
-  const overdueCount = students.filter(s => s.feeStatus === 'overdue').length;
-
-  const statsGrid = document.getElementById('studentStatsGrid');
-  if (statsGrid) {
-    statsGrid.innerHTML = `
-      <div class="stat-card"><span class="stat-label">Total Students</span><span class="stat-value">${totalStudents}</span></div>
-      <div class="stat-card"><span class="stat-label">Fee Paid</span><span class="stat-value">${paidCount}</span></div>
-      <div class="stat-card"><span class="stat-label">Fee Pending</span><span class="stat-value">${pendingCount}</span></div>
-      <div class="stat-card"><span class="stat-label">Overdue</span><span class="stat-value">${overdueCount}</span></div>
-    `;
-  }
-
-  // ---------- Filter & Search ----------
-  let list = students;
-  if (filter !== 'all') {
-    list = list.filter(s => s.class === parseInt(filter));
-  }
-  if (search.trim()) {
-    const q = search.trim().toLowerCase();
-    list = list.filter(s => s.name.toLowerCase().includes(q));
-  }
-
-  // ---------- Table Body ----------
-  const tbody = document.getElementById('studentTableBody');
-  if (!tbody) return;
-
-  if (list.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--gray-500); padding:2rem;">No students found.</td></tr>`;
-    return;
-  }
-
-  tbody.innerHTML = list.map((s, idx) => `
-    <tr>
-      <td>${idx + 1}</td>
-      <td>${s.name}</td>
-      <td>${s.class}</td>
-      <td>${s.section}</td>
-      <td>${s.roll}</td>
-      <td><span class="status-badge status-${s.feeStatus}">${s.feeStatus}</span></td>
-      <td>
-        <div class="actions-cell">
-          <button class="btn-edit" data-id="${s.id}" data-action="editStudent">Edit</button>
-          <button class="btn-delete" data-id="${s.id}" data-action="deleteStudent">Delete</button>
-        </div>
-      </td>
-    </tr>
-  `).join('');
-
-  // ---------- Event Listeners on Buttons ----------
-  tbody.querySelectorAll('[data-action="editStudent"]').forEach(btn => {
-    btn.removeEventListener('click', editHandler); // prevent duplicate binds
-    btn.addEventListener('click', editHandler);
-  });
-  tbody.querySelectorAll('[data-action="deleteStudent"]').forEach(btn => {
-    btn.removeEventListener('click', deleteHandler);
-    btn.addEventListener('click', deleteHandler);
-  });
-
-  // Wrapper functions to pass id
-  function editHandler(e) {
-    const id = e.currentTarget.dataset.id;
-    editStudent(id);
-  }
-  function deleteHandler(e) {
-    const id = e.currentTarget.dataset.id;
-    deleteStudent(id);
-  }
+/* 1. Pura page – horizontal scroll band */
+body,
+.main-content,
+.page-container {
+    overflow-x: hidden;
+    max-width: 100%;
 }
 
-// ============================================================
-// ADD STUDENT MODAL
-// ============================================================
-
-function showAddStudentModal() {
-  const classOptions = Array.from({ length: 12 }, (_, i) => i + 1)
-    .map(c => `<option value="${c}">Class ${c}</option>`).join('');
-  const sectionOptions = ['A', 'B', 'C', 'NA']
-    .map(sec => `<option value="${sec}">${sec}</option>`).join('');
-
-  window.openModal('Add Student', `
-    <div class="form-group"><label>Name *</label><input type="text" id="addStudentName" placeholder="Full name" /></div>
-    <div class="form-group"><label>Class *</label><select id="addStudentClass">${classOptions}</select></div>
-    <div class="form-group"><label>Section</label><select id="addStudentSection">${sectionOptions}</select></div>
-    <div class="form-group"><label>Roll No *</label><input type="number" id="addStudentRoll" placeholder="Roll number" /></div>
-    <div class="form-group"><label>Fee Status</label>
-      <select id="addStudentFeeStatus">
-        <option value="paid">Paid</option>
-        <option value="pending">Pending</option>
-        <option value="overdue">Overdue</option>
-      </select>
-    </div>
-    <div class="form-group"><label>Admission No</label><input type="text" id="addStudentAdmission" placeholder="ADM001" /></div>
-    <div class="form-group"><label>Mobile</label><input type="text" id="addStudentMobile" placeholder="9876543210" /></div>
-    <div class="form-group"><label>Guardian</label><input type="text" id="addStudentGuardian" placeholder="Mr. Sharma" /></div>
-  `, 'Add Student', async () => {
-    // Gather data
-    const name = document.getElementById('addStudentName').value.trim();
-    const classVal = parseInt(document.getElementById('addStudentClass').value);
-    const section = document.getElementById('addStudentSection').value;
-    const roll = parseInt(document.getElementById('addStudentRoll').value);
-    const feeStatus = document.getElementById('addStudentFeeStatus').value;
-    const admissionNo = document.getElementById('addStudentAdmission').value.trim();
-    const mobile = document.getElementById('addStudentMobile').value.trim();
-    const guardian = document.getElementById('addStudentGuardian').value.trim();
-
-    // Validation
-    if (!name || !classVal || !roll) {
-      window.showToast('Please fill all required fields (*)', 'error');
-      return;
-    }
-
-    const newStudent = {
-      name,
-      class: classVal,
-      section,
-      roll,
-      feeStatus,
-      admissionNo: admissionNo || `ADM${String(Date.now()).slice(-6)}`,
-      mobile: mobile || '',
-      guardian: guardian || '',
-      photo: ''
-    };
-
-    const btn = document.querySelector('#modal .btn-primary');
-    if (btn) { btn.disabled = true; btn.textContent = 'Adding...'; }
-
-    try {
-      const result = await createData('students', newStudent);
-      window.STUDENTS.push(result);
-      window.showToast('Student added successfully', 'success');
-      renderStudents();
-      if (window.renderDashboard) window.renderDashboard();
-      window.closeModal();
-    } catch (error) {
-      console.error('Add student error:', error);
-      window.showToast('Failed to add student. Please try again.', 'error');
-    } finally {
-      if (btn) { btn.disabled = false; btn.textContent = 'Add Student'; }
-    }
-  });
+/* 2. Table Wrapper – scroll only here */
+.table-wrapper {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;  /* smooth scroll on iOS */
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-lg);
+    background: white;
 }
 
-// ============================================================
-// EDIT STUDENT MODAL
-// ============================================================
-
-async function editStudent(id) {
-  const student = window.STUDENTS.find(s => s.id === id);
-  if (!student) {
-    window.showToast('Student not found', 'error');
-    return;
-  }
-
-  const classOptions = Array.from({ length: 12 }, (_, i) => i + 1)
-    .map(c => `<option value="${c}" ${c === student.class ? 'selected' : ''}>Class ${c}</option>`).join('');
-  const sectionOptions = ['A', 'B', 'C', 'NA']
-    .map(sec => `<option value="${sec}" ${sec === student.section ? 'selected' : ''}>${sec}</option>`).join('');
-
-  window.openModal('Edit Student', `
-    <div class="form-group"><label>Name *</label><input type="text" id="editStudentName" value="${student.name}" /></div>
-    <div class="form-group"><label>Class *</label><select id="editStudentClass">${classOptions}</select></div>
-    <div class="form-group"><label>Section</label><select id="editStudentSection">${sectionOptions}</select></div>
-    <div class="form-group"><label>Roll No *</label><input type="number" id="editStudentRoll" value="${student.roll}" /></div>
-    <div class="form-group"><label>Fee Status</label>
-      <select id="editStudentFeeStatus">
-        <option value="paid" ${student.feeStatus === 'paid' ? 'selected' : ''}>Paid</option>
-        <option value="pending" ${student.feeStatus === 'pending' ? 'selected' : ''}>Pending</option>
-        <option value="overdue" ${student.feeStatus === 'overdue' ? 'selected' : ''}>Overdue</option>
-      </select>
-    </div>
-    <div class="form-group"><label>Admission No</label><input type="text" id="editStudentAdmission" value="${student.admissionNo || ''}" /></div>
-    <div class="form-group"><label>Mobile</label><input type="text" id="editStudentMobile" value="${student.mobile || ''}" /></div>
-    <div class="form-group"><label>Guardian</label><input type="text" id="editStudentGuardian" value="${student.guardian || ''}" /></div>
-  `, 'Update', async () => {
-    const name = document.getElementById('editStudentName').value.trim();
-    const classVal = parseInt(document.getElementById('editStudentClass').value);
-    const section = document.getElementById('editStudentSection').value;
-    const roll = parseInt(document.getElementById('editStudentRoll').value);
-    const feeStatus = document.getElementById('editStudentFeeStatus').value;
-    const admissionNo = document.getElementById('editStudentAdmission').value.trim();
-    const mobile = document.getElementById('editStudentMobile').value.trim();
-    const guardian = document.getElementById('editStudentGuardian').value.trim();
-
-    if (!name || !classVal || !roll) {
-      window.showToast('Please fill all required fields (*)', 'error');
-      return;
-    }
-
-    const updated = {
-      name,
-      class: classVal,
-      section,
-      roll,
-      feeStatus,
-      admissionNo: admissionNo || student.admissionNo,
-      mobile: mobile || '',
-      guardian: guardian || '',
-      photo: student.photo || ''
-    };
-
-    const btn = document.querySelector('#modal .btn-primary');
-    if (btn) { btn.disabled = true; btn.textContent = 'Updating...'; }
-
-    try {
-      await updateData('students', id, updated);
-      const idx = window.STUDENTS.findIndex(s => s.id === id);
-      if (idx !== -1) window.STUDENTS[idx] = { ...window.STUDENTS[idx], ...updated };
-      window.showToast('Student updated successfully', 'success');
-      renderStudents();
-      if (window.renderDashboard) window.renderDashboard();
-      window.closeModal();
-    } catch (error) {
-      console.error('Update student error:', error);
-      window.showToast('Failed to update student. Please try again.', 'error');
-    } finally {
-      if (btn) { btn.disabled = false; btn.textContent = 'Update'; }
-    }
-  });
+/* 3. Base Table – clean, responsive */
+.data-table {
+    width: 100%;
+    min-width: 800px;            /* <-- ensures horizontal scroll on small screens */
+    border-collapse: collapse;
+    font-size: 0.875rem;
+    margin-bottom: 0;
 }
 
-// ============================================================
-// DELETE STUDENT
-// ============================================================
-
-async function deleteStudent(id) {
-  if (!confirm('Are you sure you want to delete this student?')) return;
-
-  const btn = document.querySelector(`button[data-id="${id}"][data-action="deleteStudent"]`);
-  if (btn) { btn.disabled = true; btn.textContent = 'Deleting...'; }
-
-  try {
-    await deleteData('students', id);
-    window.STUDENTS = window.STUDENTS.filter(s => s.id !== id);
-    window.showToast('Student deleted successfully', 'success');
-    renderStudents();
-    if (window.renderDashboard) window.renderDashboard();
-  } catch (error) {
-    console.error('Delete student error:', error);
-    window.showToast('Failed to delete student. Please try again.', 'error');
-  } finally {
-    if (btn) { btn.disabled = false; btn.textContent = 'Delete'; }
-  }
+/* 4. Header – distinct with separators */
+.data-table thead th {
+    background: var(--gray-100);
+    text-align: left;
+    padding: 0.75rem 1rem;
+    font-weight: 600;
+    color: var(--gray-700);
+    border-bottom: 2px solid var(--gray-300);
+    border-right: 1px solid var(--gray-200);
+    white-space: nowrap;
+}
+.data-table thead th:last-child {
+    border-right: none;
 }
 
-// ============================================================
-// EVENT BINDINGS
-// ============================================================
+/* 5. Data cells – row & column lines */
+.data-table td {
+    padding: 0.6rem 1rem;
+    border-bottom: 1px solid var(--gray-200);
+    border-right: 1px solid var(--gray-100);
+    vertical-align: middle;
+    white-space: nowrap;
+}
+.data-table td:last-child {
+    border-right: none;
+}
 
-document.addEventListener('DOMContentLoaded', () => {
-  const addBtn = document.getElementById('addStudentBtn');
-  if (addBtn) addBtn.addEventListener('click', showAddStudentModal);
+/* 6. Row hover + zebra striping */
+.data-table tbody tr:hover {
+    background: var(--gray-50);
+}
+.data-table tbody tr:nth-child(even) {
+    background: #fafcfc;
+}
+.data-table tbody tr:nth-child(even):hover {
+    background: var(--gray-50);
+}
 
-  const searchInput = document.getElementById('studentSearch');
-  if (searchInput) {
-    searchInput.addEventListener('input', (e) => {
-      const filter = document.getElementById('studentFilter')?.value || 'all';
-      renderStudents(filter, e.target.value);
-    });
-  }
+/* 7. Action buttons – inline */
+.data-table .actions-cell {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: nowrap;
+}
 
-  const filterSelect = document.getElementById('studentFilter');
-  if (filterSelect) {
-    filterSelect.addEventListener('change', (e) => {
-      const search = document.getElementById('studentSearch')?.value || '';
-      renderStudents(e.target.value, search);
-    });
-  }
-});
+/* 8. Status badges – already global, but ensure */
+.data-table .status-badge {
+    display: inline-block;
+    padding: 0.2rem 0.6rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: capitalize;
+}
 
-// ============================================================
-// EXPOSE GLOBALLY
-// ============================================================
+/* 9. Mobile adjustments – compact, but scroll remains */
+@media (max-width: 768px) {
+    .data-table th,
+    .data-table td {
+        padding: 0.4rem 0.6rem;
+        font-size: 0.75rem;
+        white-space: nowrap;   /* important – ensures scroll triggers */
+    }
+    .data-table thead th {
+        padding: 0.5rem 0.6rem;
+    }
+}
 
-window.renderStudents = renderStudents;
-window.showAddStudentModal = showAddStudentModal;
-window.editStudent = editStudent;
-window.deleteStudent = deleteStudent;
+@media (max-width: 480px) {
+    .data-table th,
+    .data-table td {
+        padding: 0.3rem 0.4rem;
+        font-size: 0.65rem;
+    }
+}
