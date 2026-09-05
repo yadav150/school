@@ -5,6 +5,83 @@
 import { createData, updateData, deleteData } from './firebase.js';
 
 // ============================================================
+// SETUP – Ensure Standard Table Structure (once on load)
+// ============================================================
+
+function setupStaffTable() {
+  const table = document.querySelector('#page-staff .data-table');
+  if (!table) return;
+
+  // 1. Wrap in .table-wrapper if not already
+  let wrapper = table.closest('.table-wrapper');
+  if (!wrapper) {
+    wrapper = document.createElement('div');
+    wrapper.className = 'table-wrapper';
+    table.parentNode.insertBefore(wrapper, table);
+    wrapper.appendChild(table);
+  }
+
+  // 2. Ensure <thead> exists
+  let thead = table.querySelector('thead');
+  if (!thead) {
+    const firstRow = table.querySelector('tr');
+    if (firstRow && firstRow.querySelector('th')) {
+      const rows = table.querySelectorAll('tr');
+      const headerRows = [];
+      const bodyRows = [];
+      rows.forEach(row => {
+        if (row.querySelector('th')) {
+          headerRows.push(row);
+        } else {
+          bodyRows.push(row);
+        }
+      });
+      if (headerRows.length > 0) {
+        thead = document.createElement('thead');
+        headerRows.forEach(row => thead.appendChild(row));
+        const tbody = table.querySelector('tbody');
+        if (tbody) {
+          table.insertBefore(thead, tbody);
+        } else {
+          table.appendChild(thead);
+        }
+        bodyRows.forEach(row => {
+          if (!table.querySelector('tbody')) {
+            const newTbody = document.createElement('tbody');
+            table.appendChild(newTbody);
+          }
+          table.querySelector('tbody').appendChild(row);
+        });
+      } else {
+        // Default headers
+        thead = document.createElement('thead');
+        const defaultHeaders = ['#', 'Name', 'Role', 'Designation', 'Subject/Dept', 'Email', 'Actions'];
+        const tr = document.createElement('tr');
+        defaultHeaders.forEach(text => {
+          const th = document.createElement('th');
+          th.textContent = text;
+          tr.appendChild(th);
+        });
+        thead.appendChild(tr);
+        table.prepend(thead);
+      }
+    } else {
+      // No th at all – create default
+      thead = document.createElement('thead');
+      const defaultHeaders = ['#', 'Name', 'Role', 'Designation', 'Subject/Dept', 'Email', 'Actions'];
+      const tr = document.createElement('tr');
+      defaultHeaders.forEach(text => {
+        const th = document.createElement('th');
+        th.textContent = text;
+        tr.appendChild(th);
+      });
+      thead.appendChild(tr);
+      table.prepend(thead);
+    }
+  }
+}
+
+// ============================================================
 // RENDER STAFF TABLE + STATS
 // ============================================================
 
@@ -41,6 +118,9 @@ function renderStaff(filter = 'all', search = '') {
 
   const tbody = document.getElementById('staffTableBody');
   if (!tbody) return;
+
+  // Ensure table is set up
+  setupStaffTable();
 
   if (list.length === 0) {
     tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--gray-500); padding:2rem;">No employees found.</td></tr>`;
@@ -276,6 +356,9 @@ async function deleteStaff(id) {
 // ============================================================
 
 document.addEventListener('DOMContentLoaded', () => {
+  // Setup table structure once
+  setupStaffTable();
+
   const addBtn = document.getElementById('addStaffBtn');
   if (addBtn) addBtn.addEventListener('click', showAddStaffModal);
 
@@ -294,6 +377,9 @@ document.addEventListener('DOMContentLoaded', () => {
       renderStaff(e.target.value, search);
     });
   }
+
+  // Initial render
+  renderStaff();
 });
 
 // ============================================================
